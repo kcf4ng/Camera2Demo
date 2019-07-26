@@ -22,6 +22,7 @@ import android.media.Image;
 import android.media.ImageReader;
 import android.media.MediaPlayer;
 import android.net.Uri;
+import android.os.AsyncTask;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -41,12 +42,24 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
+
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
+import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
+import java.net.ProtocolException;
+import java.net.URL;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -120,9 +133,96 @@ public class CameraAct extends AppCompatActivity {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+             PostData process = new PostData(encode);
+             process.execute();
         }
     };
 
+    public class PostData extends AsyncTask<Void,Void,Void> {
+
+        public PostData(String strEncode) {
+            this.strEncode = strEncode;
+        }
+
+        String strEncode;
+
+
+        @Override
+        protected void onPreExecute() {
+            super.onPreExecute();
+        }
+
+        @Override
+        protected Void doInBackground(Void... voids) {
+
+            JSONObject ob = new JSONObject();
+            try {
+
+                ob.put("SAMPLE_DATE","20190726");
+                ob.put("CUSTOMER_NO","42856576");
+                ob.put("DEVICE_NO","1");
+                ob.put("PATIENT_NO","123");
+                ob.put("SAMPLE_QTY","1");
+                ob.put("SAMPLE_TYPE","Urine");
+                ob.put("SAMPLE1",strEncode);
+                ob.put("SAMPLE2","");
+                ob.put("SAMPLE3","");
+                ob.put("SAMPLE4","");
+                ob.put("SAMPLE5","");
+
+                String strSearch= ob.toString();
+                Log.d(TAG,"--POST BODY:\n"+ strSearch);
+                //網址轉碼
+                URL url = new URL("http://210.17.120.51/json/APP01-PushSample.ashx");
+                //取得連線
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestProperty("Content-Type","application/json; charset=utf-8");
+                conn.setRequestProperty("Accept", "application/json");
+                conn.setRequestMethod("POST");
+                conn.setConnectTimeout(10000);
+                conn.setReadTimeout(10000);
+                conn.setDoInput(true); //允許輸入流，即允許下載
+                conn.setDoOutput(true); //允許輸出流，即允許上傳
+                conn.setUseCaches(false); //設置是否使用緩存
+                OutputStream os = conn.getOutputStream();
+                DataOutputStream writer = new DataOutputStream(os);
+
+                writer.writeBytes(strSearch);
+                writer.flush();
+                writer.close();
+                os.close();
+                //取得串流
+                InputStream streamIn = conn.getInputStream();
+                //準備開始解碼，首先，把剛剛的串流讀進來，製作一個串流讀取器(BufferReader)
+                BufferedReader bufferedReader = new BufferedReader(new InputStreamReader(streamIn));
+                //做一個StringBuilder,接著不斷地去讀取串流，讀到他是NULL為止，在這之前則把每一行 append  到 StringBuilder 裡面
+                StringBuilder html  = new StringBuilder();
+
+                String line ;
+
+                while ( (line = bufferedReader.readLine()) != null){
+                    html.append(line);
+                }
+                String strJson = html.toString();
+                Log.d(TAG,"--Response Sring :\n "+strJson);
+
+            } catch (JSONException e) {
+                e.printStackTrace();
+            } catch (ProtocolException e) {
+                e.printStackTrace();
+            } catch (MalformedURLException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+            return null;
+        }
+
+        @Override
+        protected void onPostExecute(Void aVoid) {
+            super.onPostExecute(aVoid);
+        }
+    }
 
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
