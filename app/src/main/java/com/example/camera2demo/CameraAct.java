@@ -133,6 +133,8 @@ public class CameraAct extends AppCompatActivity {
             } catch (IOException e) {
                 e.printStackTrace();
             }
+
+            //上傳base64 code
              PostData process = new PostData(encode);
              process.execute();
         }
